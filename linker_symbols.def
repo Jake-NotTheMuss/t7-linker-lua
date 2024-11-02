@@ -30,7 +30,7 @@ DEFSYMDATA(b_localized, 0x259D5C76, bool)
 /* the Rawfile loader in the LoadAsset table */
 DEFSYMDATA(LoadAsset_RawFile_Callback, 0xC86438, LoadAsset_func)
 
-/******************************************************************************/
+/*****************************************************************************/
 /* FS library */
 
 /*
@@ -66,7 +66,12 @@ DEFSYMCODE(FS_Write, 0x4740, size_t,
 */
 DEFSYMCODE(FS_FCloseFile, 0x2AE0, void, (fileHandle_t h))
 
-/******************************************************************************/
+/*****************************************************************************/
+/* memory */
+DEFSYMCODE(Z_Malloc, 0xe3b0, void *, (size_t size))
+DEFSYMCODE(Z_Free, 0xda60, void, (void *ptr))
+
+/*****************************************************************************/
 /* common */
 
 /*
@@ -92,7 +97,7 @@ DEFSYMCODE(Com_PrintInfo, 0x318CF0, void, (int label, const char *fmt, ...))
 DEFSYMCODE(Com_sprintf, 0x2CAC40, int,
            (char *dest, int size, const char *fmt, ...))
 
-/******************************************************************************/
+/*****************************************************************************/
 /* database */
 /*
 ** void *DB_AllocStreamData (size_t n)
@@ -101,7 +106,7 @@ DEFSYMCODE(Com_sprintf, 0x2CAC40, int,
 */
 DEFSYMCODE(DB_AllocStreamData, 0x177AD0, void *, (size_t n))
 
-/******************************************************************************/
+/*****************************************************************************/
 /* string library */
 /*
 ** int I_stricmp (const char *s1, const char *s2)
@@ -110,7 +115,7 @@ DEFSYMCODE(DB_AllocStreamData, 0x177AD0, void *, (size_t n))
 */
 DEFSYMCODE(I_stricmp, 0x2CB410, int, (const char *s1, const char *s2))
 
-/******************************************************************************/
+/*****************************************************************************/
 /* SEH library */
 /*
 ** int SEH_GetCurrentLanguage (void)

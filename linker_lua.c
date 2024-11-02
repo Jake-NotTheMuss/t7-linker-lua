@@ -40,59 +40,6 @@ static LoadAsset_func orig_LoadAsset_RawFile;
 #define b_localized (*addr_b_localized)
 
 
-#define BUFFERSIZE 512
-
-/*
-** userdata struct used by the read callback
-*/
-typedef struct LoadF {
-  fileHandle_t file;
-  int seeninput;
-  char buff[BUFFERSIZE];
-} LoadF;
-
-
-/*
-** read callback for Hksc
-*/
-static const char *hksc_reader_f(hksc_State *H, void *ud, size_t *size)
-{
-  size_t n;
-  LoadF *lf = (LoadF *)ud;
-  (void)H;
-  n = (size_t)FS_Read(lf->buff, BUFFERSIZE, lf->file);
-  if (lf->seeninput == 0) {
-    lf->seeninput = 1;
-    /* see if the first line begins with `#!', and skip the line if so */
-    if (n != 0 && lf->buff[0] == '#') {
-      do {
-        int i;
-        for (i = 0; i < BUFFERSIZE; i++) {
-          if (lf->buff[i] == '\r' || lf->buff[i] == '\n') {
-            n = n - i;
-            if (n == 0) {
-              /* don't return a 0-length buffer */
-              return hksc_reader_f(H, ud, size);
-            }
-            *size = n;
-            return &lf->buff[i];
-          }
-        }
-        n = (size_t)FS_Read(lf->buff, BUFFERSIZE, lf->file);
-      } while (n != 0);
-      /* go through; no line-feed was found */
-    }
-  }
-  *size = n;
-  if (n == 0) {
-    FS_FCloseFile(lf->file);
-    lf->file = NULL;
-    return NULL;
-  }
-  return lf->buff;
-}
-
-
 /*
 ** write callback for dumping the stripped bytecode to a temporary buffer
 */
@@ -187,11 +134,12 @@ static int hksc_dump_f(hksc_State *H, void *ud)
 */
 static void *LoadAsset_LuaFile(const char *name)
 {
-  RawFile dumpdata = {NULL, 0, NULL};
-  size_t filesize;
-  LoadF lf;
+  char *buffer;
+  RawFile rawfile = {NULL, 0, NULL};
+  size_t size;
+  fileHandle_t file;
   void *data;  /* bytecode stream data */
-  RawFile *rawfile;  /* rawfile asset stream data */
+  RawFile *ret;  /* rawfile asset stream data */
   int status;
   hksc_State *H = hksI_newstate(NULL);
   if (H == NULL) {
@@ -203,44 +151,37 @@ static void *LoadAsset_LuaFile(const char *name)
      (the Hksc API actually needs to be modified to allow custom debug info
      readers) */
   lua_setignoredebug(H, 1);
-  filesize = FS_FOpenFileRead(name, &lf.file);
-  (void)filesize;
-  if (lf.file == NULL) {
+  size = FS_FOpenFileRead(name, &file);
+  if (file == NULL) {
     hksI_close(H);
     Com_PrintError(0, "^1ERROR: Could not open '%s'\n", name);
     return NULL;
   }
-  lf.seeninput = 0;
-  dumpdata.name = name;
-  status = hksI_parser(H, hksc_reader_f, &lf, hksc_dump_f, &dumpdata,
-                       lua_newfstring(H, "@%s", name));
+  buffer = Z_Malloc(size+1);
+  FS_Read(buffer, size, file);
+  FS_FCloseFile(file);
+  buffer[size] = 0;
+  rawfile.name = name;
+  status = hksI_parser_buffer(H, buffer, size, name, hksc_dump_f, &rawfile);
+  Z_Free(buffer);
   if (status) {
     Com_Error(0, "%s", lua_geterror(H));
     hksI_close(H);
     return NULL;
   }
   hksI_close(H);
-  if (dumpdata.len == 0)
+  if (rawfile.len == 0)
     return NULL;
   /* allocate stream space for bytecode */
-  data = DB_AllocStreamData(dumpdata.len);
-  CopyMemory(data, dumpdata.buffer, dumpdata.len);
-  HeapFree(GetProcessHeap(), 0, (char *)dumpdata.buffer);
+  data = DB_AllocStreamData(rawfile.len);
+  CopyMemory(data, rawfile.buffer, rawfile.len);
+  HeapFree(GetProcessHeap(), 0, (char *)rawfile.buffer);
   /* allocate stream space for the RawFile asset */
-  rawfile = DB_AllocStreamData(24 /*sizeof (RawFile)*/);
-  /* don't rely on structure alignment:
-      qword [rawfile] = name
-      dword [rawfile+8] = dumpdata.len
-      qword [rawfile+16] = data */
-  __asm__ ("movl %2, %%edx\n\t"
-           "movq %1, (%0)\n\t"
-           "movq %3, 16(%0)\n\t"
-           "movl %%edx, 8(%0)" : :
-           "r" (rawfile), "r" (name), "rm" (dumpdata.len), "r" (data) : "edx");
-  /*rawfile->name = name;
-  rawfile->len = dumpdata.len;
-  rawfile->buffer = data;*/
-  return rawfile;
+  ret = DB_AllocStreamData(sizeof (RawFile));
+  ret->name = name;
+  ret->len = rawfile.len;
+  ret->buffer = data;
+  return ret;
 }
 
 

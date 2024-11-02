@@ -12,11 +12,11 @@ hksc/src/libhksc.a:
 	@git clone https://github.com/Jake-NotTheMuss/hksc >/dev/null 2>&1
 	@echo Done
 	@echo -n 'Building libhksc (this may take a minute)... '
-	@cd hksc && ./configure --game=t7 --debug >/dev/null 2>&1
+	@cd hksc && ./configure --game=t7 --release >/dev/null 2>&1
 	@make -C hksc >/dev/null 2>&1
 	@echo Done
 
-linker_lua.dll: linker_lua.c linker_symbols.def hksc/src/libhksc.a symbols.txt
+linker_lua.dll: linker_lua.c linker_symbols.def hksc/src/libhksc.a
 	$(CC) $(LINKER_LUA_CFLAGS) -save-temps -o $@ -shared linker_lua.c \
 	hksc/src/libhksc.a
 

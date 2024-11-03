@@ -86,7 +86,7 @@ static fileHandle_t openluadebug(const char *filename)
     locdir = SEH_GetLanguageName(SEH_GetCurrentLangauge());
   else
     locdir = "all";
-  Com_sprintf(buf, sizeof(buf), "zone_source/%s/luadebug/%s", locdir, filename);
+  Com_sprintf(buf, sizeof buf, "zone_source/%s/luadebug/%s", locdir, filename);
   f = FS_FOpenFileWrite(buf);
   if (f == NULL)
     Com_PrintError(0, "Could not create '%s'\n", buf);
@@ -106,7 +106,8 @@ static int writer_2file(hksc_State *H, const void *p, size_t size, void *u) {
 
 
 /*
-** dump function for Hksc; dumps stripped bytecode and then debug info if needed
+** dump function for Hksc; dumps stripped bytecode and then debug info if
+** needed
 */
 static int hksc_dump_f(hksc_State *H, void *ud)
 {
@@ -114,7 +115,7 @@ static int hksc_dump_f(hksc_State *H, void *ud)
   fileHandle_t debugfile;
   int status;
   /* dump bytecode to the output buffer */
-  lua_setbytecodestrippinglevel(H, BYTECODE_STRIPPING_ALL);
+  lua_setstrip(H, BYTECODE_STRIPPING_ALL);
   status = lua_dump(H, bytecode_writer, ud);
   if (status || b_luaStripDebug)
     return status;
@@ -122,7 +123,7 @@ static int hksc_dump_f(hksc_State *H, void *ud)
   if (debugfile == NULL)
     return status;
   /* dump debug info */
-  lua_setbytecodestrippinglevel(H, BYTECODE_STRIPPING_DEBUG_ONLY);
+  lua_setstrip(H, BYTECODE_STRIPPING_DEBUG_ONLY);
   status = lua_dump(H, writer_2file, debugfile);
   FS_FCloseFile(debugfile);
   return status;
@@ -146,11 +147,8 @@ static void *LoadAsset_LuaFile(const char *name)
     Com_PrintError(0, "cannot create Lua state: not enough memory");
     return NULL;
   }
-  lua_setintliteralsenabled(H, INT_LITERALS_ALL);
-  /* don't try to load debug files when the input is a pre-compiled file
-     (the Hksc API actually needs to be modified to allow custom debug info
-     readers) */
-  lua_setignoredebug(H, 1);
+  lua_setliteralsenabled(H, INT_LITERALS_ALL);
+  /* read the main Lua file contents */
   size = FS_FOpenFileRead(name, &file);
   if (file == NULL) {
     hksI_close(H);
@@ -161,6 +159,7 @@ static void *LoadAsset_LuaFile(const char *name)
   FS_Read(buffer, size, file);
   FS_FCloseFile(file);
   buffer[size] = 0;
+  /* call parser */
   rawfile.name = name;
   status = hksI_parser_buffer(H, buffer, size, name, hksc_dump_f, &rawfile);
   Z_Free(buffer);
@@ -170,6 +169,7 @@ static void *LoadAsset_LuaFile(const char *name)
     return NULL;
   }
   hksI_close(H);
+  /* write the resulting RawFile asset */
   if (rawfile.len == 0)
     return NULL;
   /* allocate stream space for bytecode */
@@ -199,7 +199,7 @@ static void *LoadAsset_RawFile_Override(const char *name)
 }
 
 
-/******************************************************************************/
+/*****************************************************************************/
 /* initialization stuff */
 
 static BOOL setrawfilecallback(LoadAsset_func f, LoadAsset_func *oldf)
@@ -212,8 +212,8 @@ static BOOL setrawfilecallback(LoadAsset_func f, LoadAsset_func *oldf)
     if (oldf)
       *oldf = *addr_LoadAsset_RawFile_Callback;
     *addr_LoadAsset_RawFile_Callback = f;
-    res = VirtualProtect(addr_LoadAsset_RawFile_Callback,sizeof(LoadAsset_func),
-                         prevflags, &prevflags);
+    res = VirtualProtect(addr_LoadAsset_RawFile_Callback,
+                         sizeof(LoadAsset_func), prevflags, &prevflags);
   }
   return res;
 }

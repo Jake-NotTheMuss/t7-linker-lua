@@ -1,0 +1,20 @@
+This repository contains 2 libraries:
+- linker_lua.dll
+- RemoteLogger.dll
+
+linker_lua.dll restores Lua support to the Black Ops III modtools linker.
+
+RemoteLogger.dll is loaded by "linker_modtools.exe", and RemoteLogger.dll in
+turn loads linker_lua.dll.
+
+To build these libraries, run "make". This will first download "libhksc" and
+build it, then build the libraries.
+
+Finally, run "make install" to install the built libraries to the same
+directory as "linker_modtools.exe".
+
+This software uses "libhksc" as its Lua compiler, which supports the Call of
+Duty Havok Script extensions (e.g. bitwise operators, separate debug info,
+function name hashes, etc.). It can be found here:
+
+https://github.com/Jake-NotTheMuss/hksc

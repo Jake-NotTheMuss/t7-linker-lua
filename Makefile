@@ -1,10 +1,13 @@
-
+# Makefile for linker_modtools Lua mod
 
 CC= x86_64-w64-mingw32-gcc
 
-all: linker_lua.dll RemoteLogger.dll
+bindir="$${TA_TOOLS_PATH}bin"
+csv=$(bindir)/ta_tools_config.csv
 
 LINKER_LUA_CFLAGS=-ansi -Wall -Wpedantic -ffreestanding -O2 -Ihksc/src
+
+all: linker_lua.dll
 
 hksc/src/libhksc.a:
 	@rm -rf hksc
@@ -20,19 +23,19 @@ linker_lua.dll: linker_lua.c linker_symbols.def hksc/src/libhksc.a
 	$(CC) $(LINKER_LUA_CFLAGS) -save-temps -o $@ -shared linker_lua.c \
 	hksc/src/libhksc.a
 
-RemoteLogger.dll: RemoteLogger.c RemoteLogger.h
-	$(CC) -ffreestanding -nolibc -o $@ -shared RemoteLogger.c
-
 clean:
-	rm -f linker_lua.dll RemoteLogger.dll
+	rm -f linker_lua.dll
 
 distclean: clean
 	rm -rf hksc
 
 install:
-	cp -f linker_lua.dll RemoteLogger.dll "$${TA_GAME_PATH}bin"
+	egrep -q '[,[:space:]]linker_lua\.dll($$|[,[:space:]])' $(csv) || \
+	echo 'linker,linker_lua.dll' >> $(csv)
+	cp -pf linker_lua.dll $(bindir)
 
 uninstall:
-	rm -f "$${TA_GAME_PATH}bin/linker_lua.dll" "$${TA_GAME_PATH}bin/RemoteLogger.dll"
+	sed -i.bk -e '/[,[:space:]]linker_lua\.dll\($$\|[,[:space:]]\)/d' $(csv)
+	rm -f $(bindir)/linker_lua.dll $(csv).bk
 
 .PHONY: all clean distclean install uninstall
